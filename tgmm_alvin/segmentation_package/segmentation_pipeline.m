@@ -1128,15 +1128,24 @@ for i=1:numel(st_dir)
     if isfield(myScale, 'straighten_points')
         %continue
     end
-    image_path = [paths.inFolder filesep st_dir(i).name(1:end-4) '_ch' num2str(chToUse) 'maxproj.tif'];
-    IM = imread(image_path);
-    [IM, points] = getStraightenPoints(IM);
+    fluor_image_path = [paths.inFolder filesep st_dir(i).name(1:end-4) '_ch' num2str(chToUse) 'maxproj.tif'];
+    fluor_IM = imread(fluor_image_path);
+    fluor_IM = widenImage(fluor_IM);
+    points = getStraightenPoints(fluor_IM);
+    bf_image_path = [paths.inFolder filesep st_dir(i).name(1:end-4) '_ch' num2str(ch_BF) 'maxproj.tif'];
+    bf_IM = imread(bf_image_path);
+    bf_IM = widenImage(bf_IM);
     myScale.straighten_points = points;
     w = 200;
-    [IM2, w] = optimizeStraighten(IM, points', w);
+    [fluor_IM2, w] = optimizeStraighten(fluor_IM, points', w);
+    bf_IM_2 = straighten(bf_IM, points', w);
     close;
-    imshow(permute(IM2,[2,1,3])./255); axis image off;
+    imshow(permute(fluor_IM2,[2,1,3])./255); axis image off;
     save_path = [paths.outFolder filesep st_dir(i).name(1:end-4) '_ch' num2str(chToUse) 'maxproj_straightened.tif'];
+    saveas(gcf, save_path);
+    close;
+    imshow(permute(bf_IM2,[2,1,3])./255); axis image off;
+    save_path = [paths.outFolder filesep st_dir(i).name(1:end-4) '_ch' num2str(ch_BF) 'maxproj_straightened.tif'];
     saveas(gcf, save_path);
     close;
     profile = collapseMatrix(IM2);
@@ -1153,7 +1162,7 @@ paths = [];
 paths.masterFolder = dataFolder;
 paths.inFolder = [paths.masterFolder filesep 'straightened/'];
 paths.objFolder = [paths.masterFolder filesep 'objects/'];
-chToUse = ch_KTR;
+chToUse = ch_BF;
 
 fish = '1'; % put the number of the fish/scale/hpp to process or '' to choose them all
 scale = '2';
