@@ -1,12 +1,7 @@
-function [IM, points] = getStraightenPoints(IM)
+function [points] = getStraightenPoints(IM)
 % This function takes in an image and gets the points required for
 % straightening by straighten(). Written by NSJ on 03142025, adapted from 
 % Jiacheng Wang.
-    a = 200; % How much you want to buffer the IM matrix by. This is to prevent the hitting the edge of the image during straightening.
-    horizontal_buffer = zeros(height(IM), a);
-    vertical_buffer = zeros(a, numel(IM(1, :)) + 2*a);
-    IM = [horizontal_buffer, IM, horizontal_buffer];
-    IM = [vertical_buffer; IM; vertical_buffer];
     f = figure(1);clf;
     f.WindowState = 'maximized';
     imagesc(IM);axis image off;
