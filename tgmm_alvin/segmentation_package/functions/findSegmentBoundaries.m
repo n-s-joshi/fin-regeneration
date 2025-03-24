@@ -10,9 +10,9 @@ function boundaries = findSegmentBoundaries(x, y, window)
     % boundaries in the form [left bound of segment boundary 1, right bound
     % of segment boundary 1, left bound of segment boundary 2, ... right
     % bound of segment boundary n].
-    smooth_y = smoothdata(y, 'Gaussian'); % Applies a Gaussian filter to the signal.
+    smooth_y = smoothdata(y, 'gaussian'); % Applies a Gaussian filter to the signal.
     inv_smooth_y = -smooth_y;
-    d2_smooth_y = smoothdata(del2(smooth_y), 'Gaussian'); % Applies a Gaussian filter to the second derivative.
+    d2_smooth_y = smoothdata(del2(smooth_y), 'gaussian', 100); % Applies a Gaussian filter to the second derivative.
     inv_d2_smooth_y = -d2_smooth_y; % Inversion of the second derivative to find minima.
 
     min_prom = 5;
