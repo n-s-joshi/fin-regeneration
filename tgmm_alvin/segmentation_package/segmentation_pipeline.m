@@ -37,8 +37,8 @@ ch_merge = [1,2]; % can have a merged channel if needed, if not leave as empty, 
 ch_ref = []; % reference channel for preprocessing
 ch_nuc = [];
 ch_KTR = [1]; % put [] if no KTR channel
-ch_GEM = [2]; % put [] if no GEM channel
-ch_BF = [3]; % put [] if no Bright Field channel
+ch_GEM = []; % put [] if no GEM channel
+ch_BF = [2]; % put [] if no Bright Field channel
 osteoblast = 0;
 geometry = 1; % whether to calulate crossection area
 rotate_YX = 1; % edited 092324 whether to rotate in YX plane
@@ -1138,7 +1138,7 @@ for i=1:numel(st_dir)
     myScale.straighten_points = points;
     w = 200;
     [fluor_IM2, w] = optimizeStraighten(fluor_IM, points', w);
-    bf_IM_2 = straighten(bf_IM, points', w);
+    bf_IM2 = straighten(bf_IM, points', w);
     close;
     imshow(permute(fluor_IM2,[2,1,3])./255); axis image off;
     save_path = [paths.outFolder filesep st_dir(i).name(1:end-4) '_ch' num2str(chToUse) 'maxproj_straightened.tif'];
@@ -1148,7 +1148,7 @@ for i=1:numel(st_dir)
     save_path = [paths.outFolder filesep st_dir(i).name(1:end-4) '_ch' num2str(ch_BF) 'maxproj_straightened.tif'];
     saveas(gcf, save_path);
     close;
-    profile = collapseMatrix(IM2);
+    profile = collapseMatrix(fluor_IM2);
     myScale.linescan = flip(profile);
     save(wpathmat, 'myScale');
 end
@@ -1162,7 +1162,7 @@ paths = [];
 paths.masterFolder = dataFolder;
 paths.inFolder = [paths.masterFolder filesep 'straightened/'];
 paths.objFolder = [paths.masterFolder filesep 'objects/'];
-chToUse = ch_BF;
+chToUse = ch_KTR;
 
 fish = '1'; % put the number of the fish/scale/hpp to process or '' to choose them all
 scale = '2';
@@ -1184,10 +1184,13 @@ for i=1:numel(st_dir)
     h = figure;
     h.Name = [st_dir(i).name(1:end-4) ' BF'];
     % imshow(imadjust(proj));
-    imagesc(proj*50); axis image off;
+    imagesc(proj*25); axis image off;
     h.WindowState = 'maximized';
     [x, y] = ginput(1);
     myScale.manualAmpPlane = [x, y];
+    myScale.straightenedXLength = width(proj); 
+    % [x_ref, y_ref] = ginput(1);
+    % myScale.referencePoint = [x_ref, y_ref];
     save(wpathmat, 'myScale');
     close;
 end

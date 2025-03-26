@@ -3,7 +3,7 @@ clear;clc;close all;
 disp('------------Preparing------------');
 
 % Path to directory containing the script
-addpath(genpath('/Volumes/NSJ_Data_I/scripts'));
+% addpath(genpath('/Volumes/NSJ_Data_I/scripts'));
 disp('Done');
 
 % Init plot settings
@@ -57,51 +57,13 @@ for i = 1:numel(st_dir)
     load([paths.objFolder filesep 'fish' num2str(frt(1)) '_ray' num2str(frt(2)) '_' num2str(frt(3)) 'hpa' '.mat']); %load myScale
 
     analysis_mat_here.amp_plane = myScale.manualAmpPlane;
+    analysis_mat_here.straightened_x_length = myScale.straightenedXLength;
     analysis_mat_here.x_pixels = (1:height(myScale.linescan))';
     analysis_mat_here.x_microns = analysis_mat_here.x_pixels * x_conversion;
     analysis_mat_here.raw_profile = myScale.linescan;
 
     analysis_mat = [analysis_mat analysis_mat_here];
 end
-% 
-% 
-% fish_nums = {'1', '2', '3'};
-% ray_nums = {'2', '6'};
-% % timepoints = {'0', '4', '8', '12', '16', '20', '24'}; 
-% timepoints = {'0', '12', '24', '48', '60', '72'};
-% %num_bifurcates = [2, 3, 2, 2, 2, 1]; 
-% num_bifurcates = [2, 2, 2, 2, 2, 2]; % How many 'subrays' are being quantified in each image?
-% 
-% var_names_raw_data = {};
-% var_names = {};
-% i = 1;
-% for fish = fish_nums
-%     for ray = ray_nums
-%         for j = 1:num_bifurcates(i)
-%             for time = timepoints
-%                 name = ['fish' fish '_ray' ray '_' num2str(j) '_' time 'hpa'];
-%                 new_column_x = [name '_x'];
-%                 new_column_y = [name '_y'];
-%                 var_names{end+1} = strjoin(name, '');
-%                 var_names_raw_data{end+1} = strjoin(new_column_x, '');
-%                 var_names_raw_data{end+1} = strjoin(new_column_y, '');
-%             end
-%         end
-%         i = i + 1;
-%     end
-% end
-% 
-% raw_table = readtable([paths.csvFolder filesep 'data_csv']);
-% raw_table.Properties.VariableNames = var_names_raw_data; % Holds all raw data.
-% smoothed_matrix = nan(height(raw_table), width(raw_table));
-% excluded_matrix = nan(height(raw_table), width(raw_table)); % Will hold raw data without data points which fall in segement boundaries.
-% smoothed_excluded_matrix = nan(height(raw_table), width(raw_table)); % Will hold data excluding segment boundaries fit with a smoothing spline.
-% if isfile([paths.csvFolder filesep 'smoothed_table.csv'])
-%     smoothed_table = readtable([paths.csvFolder filesep 'smoothed_table.csv']);
-% end
-% if isfile([paths.csvFolder filesep 'smoothed_excluded_table.csv'])
-%     smoothed_excluded_table = readtable([paths.csvFolder filesep 'smoothed_excluded_table.csv']);
-% end
 disp('Done');
 
 %% Align profiles
@@ -113,12 +75,14 @@ for i = 1:width(analysis_mat)
     disp(name);
     
     if analysis_mat(i).hpa == 0
-        reference_amp_x = analysis_mat(i).amp_plane(1, 1);
+        reference_amp_x = analysis_mat(i).straightened_x_length - analysis_mat(i).amp_plane(1, 1);
     end
     
-    amp_x = analysis_mat(i).amp_plane(1, 1);
+    amp_x = analysis_mat(i).straightened_x_length - analysis_mat(i).amp_plane(1, 1);
     shift = amp_x - reference_amp_x;
-    analysis_mat(i).x_pixels_shifted = analysis_mat(i).x_pixels + shift;
+    shift = round(shift);
+    analysis_mat(i).shift = shift;
+    analysis_mat(i).x_pixels_shifted = analysis_mat(i).x_pixels - shift;
     analysis_mat(i).x_microns_shifted = analysis_mat(i).x_pixels_shifted * x_conversion;
     figure(f); plot(analysis_mat(i).x_microns_shifted, analysis_mat(i).raw_profile); hold on;
     title('aligned');
@@ -129,27 +93,17 @@ end
 %% Find and Exclude Segment Boundaries
 disp('------------Identifying and Excluding Segment Boundaries------------');
 j = 1;
-for k = 1:width(analysis_mat)
+g = figure;
+for k = 1:1 %width(analysis_mat)
     curr_im = analysis_mat(k);
     name = ['fish' num2str(curr_im.fish) '_ray' num2str(curr_im.ray) '_' num2str(curr_im.hpa) 'hpa'];
     disp(name);
-    % if startsWith(name, 'fish1_ray6_3') || startsWith(name, 'fish3_ray6_1')
-    %    continue;
-    % else
-    % x_name = strcat(name, '_x');
-    % y_name = strcat(name, '_y');
-    % raw_x = raw_table{:, x_name};
-    % raw_y = raw_table{:, y_name};
-    % h = height(raw_y(~isnan(raw_y))); % Height of the signal excluding all values which equal NaN.
-    % raw_x = raw_x(1:h);
-    % raw_y = raw_y(1:h);
-    % smooth_raw_y = feval(fit_spline(raw_x, raw_y), raw_x);
-
     window = 100;
     if curr_im.hpa == 0 % Only finds boundaries on profiles from 0hpa and propagates to all the subsequent timepoints.
         boundaries = findSegmentBoundaries(curr_im.x_pixels, curr_im.raw_profile, window);
     end
     
+    boundaries = boundaries + analysis_mat(k).shift;
     new_y = curr_im.raw_profile(1:boundaries(1));
     for i = 1:height(boundaries)/2
         x1 = boundaries(i*2, :);
@@ -160,26 +114,25 @@ for k = 1:width(analysis_mat)
         end
         new_y = [new_y; NaN(x1-height(new_y)-1, 1); curr_im.raw_profile(x1:x2)];
     end
-    new_x = curr_im.x_pixels;
-    smooth_y = feval(fit_spline(new_x, new_y(1:height(new_x))), new_x);
+    % new_x = curr_im.x_pixels;
+    % smooth_y = feval(fit_spline(new_x, new_y(1:height(new_x))), new_x);
+    smooth_y = feval(fit_spline(analysis_mat(k).x_pixels, new_y), analysis_mat(k).x_pixels);
 
-    curr_im.excluded_x_pixels = new_x;
-    curr_im.excluded_x_microns = curr_im.excluded_x_pixels * x_conversion;
-    curr_im.excluded_y = new_y;
+    figure(g);
+    plot(analysis_mat(k).x_pixels_shifted, smooth_y);
+    hold on;
+
+    % curr_im.excluded_x_pixels = new_x;
+    % curr_im.excluded_x_microns = curr_im.excluded_x_pixels * x_conversion;
+    % curr_im.excluded_y = new_y;
     curr_im.smooth_excluded_y = smooth_y;
-    % smoothed_matrix(1:height(curr_im.x_pixels), j*2-1) = curr_im.x_pixels;
-    % smoothed_matrix(1:height(curr_im.raw_profile), j*2) = smooth_curr_im.raw_profile;
-    % excluded_matrix(1:height(new_x), j*2-1) = new_x;
-    % excluded_matrix(1:height(new_y), j*2) = new_y;
-    % smoothed_excluded_matrix(1:height(new_x), j*2-1) = new_x;
-    % smoothed_excluded_matrix(1:height(smooth_y), j*2) = smooth_y;
 
     f = figure;
     figure(f);
     plot(curr_im.x_pixels, curr_im.raw_profile);
     hold on
-    plot(curr_im.excluded_x_pixels, curr_im.smooth_excluded_y);
-    for bounds = boundaries(:, 1)%*x_conversion
+    plot(curr_im.x_pixels, curr_im.smooth_excluded_y);
+    for bounds = boundaries(:, 1) + analysis_mat(k).shift %*x_conversion
         xline(bounds);
         hold on
     end
@@ -193,16 +146,6 @@ for k = 1:width(analysis_mat)
     j = j+1;
     % end
 end
-
-% smoothed_table = array2table(smoothed_matrix);
-% excluded_table = array2table(excluded_matrix);
-% smoothed_excluded_table = array2table(smoothed_excluded_matrix);
-% smoothed_table.Properties.VariableNames = var_names_raw_data;
-% excluded_table.Properties.VariableNames = var_names_raw_data;
-% smoothed_excluded_table.Properties.VariableNames = var_names_raw_data;
-% writetable(smoothed_table, [paths.csvFolder filesep 'smoothed_table.csv']);
-% writetable(excluded_table, [paths.csvFolder filesep 'excluded_table.csv']);
-% writetable(smoothed_excluded_table, [paths.csvFolder filesep 'smoothed_excluded_table.csv']);
 disp('Done');
 
 %% Plot Smoothened Ray Profiles
