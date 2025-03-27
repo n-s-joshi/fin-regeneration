@@ -8,6 +8,8 @@ disp('Done');
 
 % Init plot settings
 set(groot,'defaultLineLineWidth',2.0)
+num_times = 6;
+newcolors = brewermap(num_times, '+Reds');
 
 x_conversion = 0.606; % Conversion from pixels to um.
 
@@ -20,6 +22,8 @@ paths =[];
 paths.diskName = '/Volumes/NSJ_Data_I';
 paths.expName = 'caudal_fin/11092024_osx-caax-gfp_reamp';
 paths.objFolder = [paths.diskName filesep paths.expName filesep 'objects'];
+paths.boundariesFolder = [paths.diskName filesep paths.expName filesep 'boundaries'];
+paths.alignedFolder = [paths.diskName filesep paths.expName filesep 'aligned'];
 
 % Paths to  new directories
 paths.csvFolder = [paths.diskName filesep paths.expName filesep 'csv'];
@@ -27,6 +31,13 @@ paths.plotsFolder = [paths.diskName filesep paths.expName filesep 'plots'];
 
 % Make directories for those which do not already exist
 mkdir(paths.plotsFolder);
+mkdir(paths.boundariesFolder);
+mkdir(paths.alignedFolder);
+
+if isfile([paths.objFolder filesep 'analysis_mat.mat'])
+    load([paths.objFolder filesep 'analysis_mat.mat']);
+end
+
 disp('Done');
 
 %% Create structure to hold data
@@ -64,12 +75,14 @@ for i = 1:numel(st_dir)
 
     analysis_mat = [analysis_mat analysis_mat_here];
 end
+save([paths.objFolder filesep 'analysis_mat'], 'analysis_mat');
 disp('Done');
 
 %% Align profiles
 disp('------------Aligning Profiles by Amputation Plane------------')
+j = 1;
 f = figure;
-g = figure;
+colororder(newcolors);
 for i = 1:width(analysis_mat)
     name = ['fish' num2str(analysis_mat(i).fish) '_ray' num2str(analysis_mat(i).ray) '_' num2str(analysis_mat(i).hpa) 'hpa'];
     disp(name);
@@ -84,52 +97,56 @@ for i = 1:width(analysis_mat)
     analysis_mat(i).shift = shift;
     analysis_mat(i).x_pixels_shifted = analysis_mat(i).x_pixels - shift;
     analysis_mat(i).x_microns_shifted = analysis_mat(i).x_pixels_shifted * x_conversion;
-    figure(f); plot(analysis_mat(i).x_microns_shifted, analysis_mat(i).raw_profile); hold on;
-    title('aligned');
-    figure(g); plot(analysis_mat(i).x_microns, analysis_mat(i).raw_profile); hold on;
-    title('raw)');
+    
+    if j < num_times
+        plot(analysis_mat(i).x_microns_shifted, analysis_mat(i).raw_profile); hold on;
+        j = j + 1;
+    elseif j == num_times
+        plot(analysis_mat(i).x_microns_shifted, analysis_mat(i).raw_profile); hold off;
+        title(['fish' num2str(analysis_mat(i).fish) '_ray' num2str(analysis_mat(i).ray) '_aligned'], 'Interpreter', 'none');
+        saveas(f, [paths.alignedFolder filesep 'fish' num2str(analysis_mat(i).fish) '_ray' num2str(analysis_mat(i).ray) '_aligned.png']);
+        close(f);
+        j = 1;
+        f = figure;
+        colororder(newcolors);
+    end
+
 end
+save([paths.objFolder filesep 'analysis_mat'], 'analysis_mat');
+
+disp('Done');
     
 %% Find and Exclude Segment Boundaries
 disp('------------Identifying and Excluding Segment Boundaries------------');
-j = 1;
-g = figure;
+% j = 1;
 for k = 1:width(analysis_mat)
-    curr_im = analysis_mat(k);
-    name = ['fish' num2str(curr_im.fish) '_ray' num2str(curr_im.ray) '_' num2str(curr_im.hpa) 'hpa'];
+    name = ['fish' num2str(analysis_mat(k).fish) '_ray' num2str(analysis_mat(k).ray) '_' num2str(analysis_mat(k).hpa) 'hpa'];
     disp(name);
     window = 100;
-    if curr_im.hpa == 0 % Only finds boundaries on profiles from 0hpa and propagates to all the subsequent timepoints.
-        boundaries = findSegmentBoundaries(curr_im.x_pixels, curr_im.raw_profile, window);
+    if analysis_mat(k).hpa == 0 % Only finds boundaries on profiles from 0hpa and propagates to all the subsequent timepoints.
+        boundaries = findSegmentBoundaries(analysis_mat(k).x_pixels, analysis_mat(k).raw_profile, window);
     end
     
     boundaries_shifted = boundaries + analysis_mat(k).shift;
-    new_y = curr_im.raw_profile(1:boundaries_shifted(1));
+    new_y = analysis_mat(k).raw_profile(1:boundaries_shifted(1));
     for i = 1:height(boundaries_shifted)/2
         x1 = boundaries_shifted(i*2, :);
         if i == height(boundaries_shifted)/2
-            x2 = height(curr_im.x_pixels);
+            x2 = height(analysis_mat(k).x_pixels);
         else
             x2 = boundaries_shifted((i*2)+1, :);
         end
-        new_y = [new_y; NaN(x1-height(new_y)-1, 1); curr_im.raw_profile(x1:x2)];
+        new_y = [new_y; NaN(x1-height(new_y)-1, 1); analysis_mat(k).raw_profile(x1:x2)];
     end
     smooth_y = feval(fit_spline(analysis_mat(k).x_pixels, new_y), analysis_mat(k).x_pixels);
 
-    figure(g);
-    plot(analysis_mat(k).x_pixels_shifted, smooth_y);
-    hold on;
-
-    % curr_im.excluded_x_pixels = new_x;
-    % curr_im.excluded_x_microns = curr_im.excluded_x_pixels * x_conversion;
-    % curr_im.excluded_y = new_y;
-    curr_im.smooth_excluded_y = smooth_y;
+    analysis_mat(k).smooth_excluded_y = smooth_y;
 
     f = figure;
     figure(f);
-    plot(curr_im.x_pixels, curr_im.raw_profile);
+    plot(analysis_mat(k).x_pixels, analysis_mat(k).raw_profile);
     hold on
-    plot(curr_im.x_pixels, curr_im.smooth_excluded_y);
+    plot(analysis_mat(k).x_pixels, analysis_mat(k).smooth_excluded_y);
     for bounds = boundaries_shifted(:, 1) %*x_conversion
         xline(bounds);
         hold on
@@ -138,81 +155,45 @@ for k = 1:width(analysis_mat)
     title(name, 'Interpreter', 'none');
     xlim([1, 1200]);
     ylim([1, 255]);
-    saveas(f, strjoin([paths.boundariesFolder filesep name '_boundaries.png'], ''));
+    saveas(f, [paths.boundariesFolder filesep name '_boundaries.png']);
     close;
-
-    j = j+1;
+    % j = j+1;
 end
+save([paths.objFolder filesep 'analysis_mat'], 'analysis_mat');
 disp('Done');
 
 %% Plot Smoothened Ray Profiles
 disp('------------Plotting Smoothened Profiles------------');
-set(groot,'defaultLineLineWidth',2.0)
-input_max = 800;
-output_max = 255;
-newcolors = brewermap(width(timepoints), '+Reds');
-
-smoothed_table = readtable([paths.csvFolder filesep 'smoothed_table.csv']);
-smoothed_excluded_table = readtable([paths.csvFolder filesep 'smoothed_excluded_table.csv']);
-
-i = 1;
-for fish = fish_nums
-    for ray = ray_nums
-        for i = 1:num_bifurcates(i)
-            name = ['fish' fish '_ray' ray '_' num2str(i)];
-            smoothed_savename = strjoin([paths.plotsFolder filesep 'fish' fish '_ray' ray '_' num2str(i) 'smoothed'], '');
-            smoothed_video = VideoWriter(smoothed_savename,'MPEG-4'); %open video file
-            smoothed_video.FrameRate = 1;
-            open(smoothed_video)
-            g = figure; % Figure corresponding to grouped plots
-            figure(g);
-            colororder(newcolors);
-            
-            smoothed_excluded_savename = strjoin([paths.plotsFolder filesep 'fish' fish '_ray' ray '_' num2str(i) 'smoothed_excluded'], '');
-            smoothed_excluded_video = VideoWriter(smoothed_excluded_savename,'MPEG-4'); %open video file
-            smoothed_excluded_video.FrameRate = 1;
-            open(smoothed_excluded_video)
-            f = figure; % Figure corresponding to grouped plots
-            figure(f);
-            colororder(newcolors);
-            for time = timepoints
-                x_name = strjoin([name '_' time 'hpa' '_x'], '');
-                y_name = strjoin([name '_' time 'hpa' '_y'], '');
-                smoothed_x = smoothed_table{:, x_name};
-                smoothed_y = smoothed_table{:, y_name};                
-                smoothed_excluded_x = smoothed_excluded_table{:, x_name};
-                smoothed_excluded_y = smoothed_excluded_table{:, y_name};
-
-                figure(g);
-                plot(smoothed_x*x_conversion, smoothed_y);
-                xlim([0 1000]);
-                ylim([0 255]);
-                title(strjoin(name, ''), 'Interpreter', 'none');
-                xlabel('Distance from the amputation plane (microns)');
-                ylabel('Pixel intensity (AU)');
-                legend('0hpa', '4hpa', '8hpa', '12hpa', '16hpa', '20hpa', '24hpa'); %legend('0hpa', '12hpa', '24hpa', '48hpa', '60hpa', '72hpa'); %
-                hold on;
-                frame = getframe(g); %get frame
-                writeVideo(smoothed_video, frame);
-                
-                figure(f);
-                plot(smoothed_excluded_x*x_conversion, smoothed_excluded_y);
-                xlim([0 1000]);
-                ylim([0 255]);
-                title(strjoin(name, ''), 'Interpreter', 'none');
-                xlabel('Distance from the amputation plane (microns)');
-                ylabel('Pixel intensity (AU)');
-                legend('0hpa', '4hpa', '8hpa', '12hpa', '16hpa', '20hpa', '24hpa'); %legend('0hpa', '12hpa', '24hpa', '48hpa', '60hpa', '72hpa'); %
-                hold on;
-                frame = getframe(f); %get frame
-                writeVideo(smoothed_excluded_video, frame);
-            end
-            close(g);
-            close(smoothed_video);
-            close(f);
-            close(smoothed_excluded_video);
-        end
-        i = i + 1;
+video = VideoWriter([paths.plotsFolder filesep 'fish' num2str(analysis_mat(1).fish) '_ray' num2str(analysis_mat(1).ray) '_video.mp4'], 'MPEG-4');
+video.FrameRate = 1;
+video.Quality = 100;
+open(video);
+f = figure;
+colororder(newcolors);
+for i = 1:width(analysis_mat)
+    plot(analysis_mat(i).x_microns_shifted, analysis_mat(i).smooth_excluded_y);
+    xlim([-400, 750]);
+    ylim([0, 255]);
+    title(['fish' num2str(analysis_mat(i).fish) '_ray' num2str(analysis_mat(i).ray) '_' num2str(analysis_mat(i).dpa) 'dpa'], 'Interpreter', 'none');
+    xlabel('Distance from amputation plane (microns)');
+    ylabel('Osx:CAAX-GFP intensity (A.U.)');
+    legend('0hpa', '12hpa', '24hpa', '48hpa', '60hpa', '72hpa');
+    frame = getframe(f); %get frame
+    writeVideo(video, frame);
+    if j < num_times
+        hold on;
+        j = j + 1;
+    elseif j == num_times
+        hold off;
+        close(f);
+        close(video);
+        j = 1;
+        video = VideoWriter([paths.plotsFolder filesep 'fish' num2str(analysis_mat(i+1).fish) '_ray' num2str(analysis_mat(i+1).ray) '_video.mp4'], 'MPEG-4');
+        video.FrameRate = 1;
+        video.Quality = 100;
+        open(video);
+        f = figure;
+        colororder(newcolors);
     end
 end
 disp('Done');
