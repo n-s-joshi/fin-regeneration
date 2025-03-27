@@ -3,7 +3,7 @@ clear;clc;close all;
 disp('------------Preparing------------');
 
 % Path to directory containing the script
-% addpath(genpath('/Volumes/NSJ_Data_I/scripts'));
+addpath(genpath('/Volumes/NSJ_Data_I/scripts/tgmm_alvin/segmentation_package/functions/'));
 disp('Done');
 
 % Init plot settings
@@ -94,7 +94,7 @@ end
 disp('------------Identifying and Excluding Segment Boundaries------------');
 j = 1;
 g = figure;
-for k = 1:1 %width(analysis_mat)
+for k = 1:width(analysis_mat)
     curr_im = analysis_mat(k);
     name = ['fish' num2str(curr_im.fish) '_ray' num2str(curr_im.ray) '_' num2str(curr_im.hpa) 'hpa'];
     disp(name);
@@ -103,19 +103,17 @@ for k = 1:1 %width(analysis_mat)
         boundaries = findSegmentBoundaries(curr_im.x_pixels, curr_im.raw_profile, window);
     end
     
-    boundaries = boundaries + analysis_mat(k).shift;
-    new_y = curr_im.raw_profile(1:boundaries(1));
-    for i = 1:height(boundaries)/2
-        x1 = boundaries(i*2, :);
-        if i == height(boundaries)/2
+    boundaries_shifted = boundaries + analysis_mat(k).shift;
+    new_y = curr_im.raw_profile(1:boundaries_shifted(1));
+    for i = 1:height(boundaries_shifted)/2
+        x1 = boundaries_shifted(i*2, :);
+        if i == height(boundaries_shifted)/2
             x2 = height(curr_im.x_pixels);
         else
-            x2 = boundaries((i*2)+1, :);
+            x2 = boundaries_shifted((i*2)+1, :);
         end
         new_y = [new_y; NaN(x1-height(new_y)-1, 1); curr_im.raw_profile(x1:x2)];
     end
-    % new_x = curr_im.x_pixels;
-    % smooth_y = feval(fit_spline(new_x, new_y(1:height(new_x))), new_x);
     smooth_y = feval(fit_spline(analysis_mat(k).x_pixels, new_y), analysis_mat(k).x_pixels);
 
     figure(g);
@@ -132,7 +130,7 @@ for k = 1:1 %width(analysis_mat)
     plot(curr_im.x_pixels, curr_im.raw_profile);
     hold on
     plot(curr_im.x_pixels, curr_im.smooth_excluded_y);
-    for bounds = boundaries(:, 1) + analysis_mat(k).shift %*x_conversion
+    for bounds = boundaries_shifted(:, 1) %*x_conversion
         xline(bounds);
         hold on
     end
@@ -140,11 +138,10 @@ for k = 1:1 %width(analysis_mat)
     title(name, 'Interpreter', 'none');
     xlim([1, 1200]);
     ylim([1, 255]);
-    % saveas(f, strjoin([paths.boundariesFolder filesep name '_boundaries.png'], ''));
-    % close;
+    saveas(f, strjoin([paths.boundariesFolder filesep name '_boundaries.png'], ''));
+    close;
 
     j = j+1;
-    % end
 end
 disp('Done');
 
