@@ -2,12 +2,13 @@
 %%%%
 % this pipeline is compatible with MATLAB2021b
 clear;clc;close all;
-% addpath(genpath('D:\BIO\PhD\ditalia\zebrafish\github\ditalia-zebrafish\code\functions\'))
-% addpath(genpath('./functions/'))
+addpath(genpath('/Volumes/NSJ_Data_I/scripts/tgmm_alvin/segmentation_package/'))
+addpath(genpath('./functions/'))
 
 
 %% Initialize
-dataFolder = '/Volumes/NSJ_Data_I/caudal_fin/11092024_osx-caax-gfp_reamp';
+dataFolder = 'F:\caudal_fin\04092024_osx-H2A-mCh_runx2a-GFP';
+dataFolder = '/Volumes/NSJ_Data_I/caudal_fin/05_03_2025_Runx2-GFP';
 
 dataFolder = [dataFolder filesep];
 dataFolder_split = split(dataFolder,filesep);
@@ -15,18 +16,15 @@ dataFolder_split = split(dataFolder,filesep);
 % winFolder = 'C:\Users\Ashley\Desktop'; % directory to put data on workstation for TGMM run
 winFolder = char(join(dataFolder_split(1:end-2),filesep));
 
-TGMMtemplateFolder = 'D:\BIO\PhD\ditalia\zebrafish\github\ditalia-zebrafish\data'; % directory for TGMMconfig/bat template
-% TGMMtemplateFolder = 'I:\workstation_run\segmentation_package';
-% TGMMtemplateFolder = './';
+TGMMtemplateFolder = 'F:\scripts\tgmm_alvin';
+TGMMtemplateFolder = '/Volumes/NSJ_Data_I/scripts/tgmm_alvin';
+
 
 TGMMtemplateFolder = [TGMMtemplateFolder filesep];
 
-TGMMbuildFolder = ['C:\Users\Ashley\Desktop\TGMM_Supplementary_Software_1_0\build\']; % directory file TGMM software
-TGMMbuildFolder = ['D:\BIO\PhD\ditalia' filesep 'TGMM_Supplementary_Software_1_0\build\'];
-% TGMMbuildFolder = ['C:\Users\ditalialab\Desktop\TGMM_Supplementary_Software_1_0\build\'];
+TGMMbuildFolder = 'F:\scripts\tgmm_alvin\TGMM_Supplementary_Software_1_0\build';
+TGMMbuildFolder = '/Volumes/NSJ_Data_I/scripts/tgmm_alvin/TGMM_Supplementary_Software_1_0/build';
 
-readTGMMFolder = ['D:\BIO\PhD\ditalia\zebrafish\github\ditalia-zebrafish\code\readTGMM_XMLoutput\']; % paths for readTGMM code
-readTGMMFolder = ['I:\workstation_run\segmentation_package/readTGMM_XMLoutput/'];
 readTGMMFolder = ['./readTGMM_XMLoutput/'];
 
 % bckgrd = 10;
@@ -34,9 +32,9 @@ readTGMMFolder = ['./readTGMM_XMLoutput/'];
 
 ch_of_interest = [1]; % channels to quantify
 ch_merge = [1,2]; % can have a merged channel if needed, if not leave as empty, the merged channel becomes channel 0. edited 070324
-ch_ref = []; % reference channel for preprocessing
+ch_ref = [1]; % reference channel for preprocessing
 ch_nuc = [];
-ch_KTR = [1]; % put [] if no KTR channel
+ch_KTR = []; % put [] if no KTR channel
 ch_GEM = []; % put [] if no GEM channel
 ch_BF = [2]; % put [] if no Bright Field channel
 osteoblast = 0;
@@ -155,7 +153,7 @@ for j = 1:numel(split_by_space)
     fix_list = [fix_list,['fish' frt{1} '_ray' frt{2} '_' frt{3} 'hpa']];
 end
 %% Stitching
-% Stitch scales pat
+% Stitch scales part
 % The regenerating scale is usually image in 4-9 position that require
 % need to be stitched in 3D. This section stitches the positions in a
 % single stack.
@@ -195,7 +193,7 @@ mkdir(paths.outFolder);
 fish='';
 scale=''; 
 hpp='';
-st_dir=dir([paths.inFolder 'fish'  num2str(fish) '*ray' num2str(scale) '*' num2str(hpp) 'hpa']);
+st_dir=dir([paths.inFolder 'fish'  num2str(fish) '*ray' num2str(scale) '*_*' num2str(hpp) 'hpa']);
 
 tic
 for i=1:numel(st_dir)
@@ -209,8 +207,18 @@ for i=1:numel(st_dir)
             basename=st_dir(i).name;
             % edited 120222, only run on data thats not been processed
             if exist([paths.objFolder basename '.mat'],'file')
-%                 continue
+                continue
             end
+            % fish_to_skip = 'fish3_ray20_48hpa/';
+            % if endsWith(folder, 'fish3_ray20_48hpa/')
+            %     continue
+            % end
+            % if endsWith(folder, 'fish5_ray20_24hpa/')
+            %     continue
+            % end
+            % if endsWith(folder, 'fish4_ray20_72hpa/')
+            %     continue
+            % end
             if(~exist(folder,'dir'))
                 continue
             end
@@ -259,7 +267,7 @@ for i=1:numel(st_dir)
                     [myScale] = stitchScale(paths,basename,opts);
                     % write correct hpp
                     myScale.pluckTime=pluckTime_here;
-                    myScale.hppTrue=myScale.metadata{1}.hTimeStamp-datenum(pluckTime_here)*24;
+                    % myScale.hppTrue=myScale.metadata{1}.hTimeStamp-datenum(pluckTime_here)*24;
                     wpathmat=[paths.objFolder basename '.mat'];  
                     save(wpathmat,'myScale');
                 end
@@ -390,7 +398,7 @@ for i=1:numel(st_dir)
    end
    
    % time - dpp
-   posdpp=regexp(name,'dpa');
+   posdpp=regexp(name,'hpa');
    if(~isempty(posdpp))
         postime=delimiters(find(delimiters<posdpp,1,'last'))+1;
         myScale.dpp =str2num(name(postime:posdpp-1));
@@ -516,7 +524,7 @@ end
 
 useSavedParams = false;
 
-refCh=[2,1]; % reference channels to use for ROI selections, can put 2 channels and will show overlap with intensity adapted for each channel separately, -1 for merge all channels
+refCh=[1]; % reference channels to use for ROI selections, can put 2 channels and will show overlap with intensity adapted for each channel separately, -1 for merge all channels
 chToClean=[];  % reference channels to use for manual cleaning step. Need to be empty here
 roi=[]; % roi to use (stack; [] to ask user input)
 
@@ -530,9 +538,9 @@ paths.objFolder=   [paths.masterFolder 'objects/']; %objects folder
 
 if(~useSavedParams)
     
-    fish=''; % put the number of the fish/scale/hpp to process or '' to choose them all
-    scale=''; 
-    hpp='';
+    fish='3'; % put the number of the fish/scale/hpp to process or '' to choose them all
+    scale='20'; 
+    hpp='120';
     st_dir=dir([paths.inFolder 'fish'  num2str(fish) '*ray' num2str(scale) '*' num2str(hpp) 'hpa*' 'ch' num2str(refCh(1)) '.tif']);
 
     % sort st_dir; edited 121222
@@ -580,7 +588,7 @@ tStart = tic;
 disp('---------Starting converting rois----------');
 
 refCh=ch_ref; % reference channel (not used since you are providing ROIs)
-chToClean=ch_of_interest; % channels to apply cleaning to
+chToClean=ch_BF; % channels to apply cleaning to
 roi=[];
 
 paths=[];
@@ -603,7 +611,7 @@ opts.refCh = refCh;
 
 for i=1:numel(st_dir)
     if exist([paths.roiFolder st_dir(i).name(1:end-4) '_ROI.tif'],'file')
-%         continue
+         % continue
     end
     % edited 120922 process fast projROI into 3d roi
     % edited 052523 to enable multiple roiTight
@@ -640,7 +648,7 @@ end
 disp('---------Starting cleaning images----------');
 
 refCh=ch_ref; % reference channel (not used since you are providing ROIs)
-chToClean=ch_of_interest; % channels to apply cleaning to
+chToClean=ch_BF; % channels to apply cleaning to
 roi=[];
 
 paths=[];
@@ -695,7 +703,7 @@ end
 %% one-step crop
 disp('----------Starting cropping image')
 
-chToCrop=ch_of_interest; % channels to apply cleaning to
+chToCrop=ch_BF; % channels to apply cleaning to
 
 paths=[];
 paths.masterFolder=dataFolder; %folder where data is stored
@@ -727,7 +735,7 @@ end
 % re-rotation angles.
 disp('----------Resize images for rotation---------')
 
-chToResize = ch_ref; %reference channel for angles calculation
+chToResize = ch_BF; %reference channel for angles calculation
 
 paths=[];
 paths.masterFolder=dataFolder; %folder where data is stored
@@ -736,9 +744,9 @@ paths.outFolder= [paths.masterFolder 'cleaned/resized4x/']; % output folder resi
 paths.objFolder= [paths.masterFolder 'objects/']; % objects folder
 paths.fieldName=  'resizeCropped'; % struct field resizing parameters
 
-fish='3';  % put the number of the fish/scale/hpp to process or '' to choose them all
-scale='2'; 
-hpp='12';
+fish='';  % put the number of the fish/scale/hpp to process or '' to choose them all
+scale=''; 
+hpp='';
 st_dir=dir([paths.inFolder 'fish'  num2str(fish) '*ray' num2str(scale) '*' num2str(hpp) 'hpa*' 'ch' num2str(chToResize) '.tif']);
 
 opts=[];
@@ -774,7 +782,7 @@ for i=1:numel(st_dir)
     save([paths.objFolder filesep st_dir(i).name(1:end-8) '.mat'],'myScale');
 
 end
-
+disp('Done');
 %% Re-rotate scales - Calculate rotation parameters - (actually theres only one rotation in this pipeline)
 % The stack is re-rotated so that the cleaned scale is as parallel as possibile
 % to the xy plane. Angles are automatically calculated and the user chooses
@@ -789,7 +797,7 @@ useSavedParams= false;
 
 if(~useSavedParams)
     refCh=ch_ref;
-    chToRotate = []; %channels to rotate at this step ([] for none)
+    chToRotate = ch_of_interest; %channels to rotate at this step ([] for none)
     if rotate_YX % edited 092324 whether to rotate in YX plane
         ths=[NaN NaN NaN];
     else
@@ -802,7 +810,9 @@ if(~useSavedParams)
 
     paths=[];
     paths.masterFolder=dataFolder; %folder where data is stored
-    paths.inFolder=  [paths.masterFolder 'cleaned/resized4x/']; %images to use to calculate rotation
+    % paths.inFolder=  [paths.masterFolder 'cleaned/resized4x/']; %images
+    % to use to calculate rotation % changed to line 812 on 4/8/25
+    paths.inFolder=  [paths.masterFolder 'cleaned/'];
     paths.outFolder= [paths.masterFolder 'rotated/']; % output folder (not used here)
     paths.objFolder= [paths.masterFolder 'objects/']; % objects folder
 
@@ -826,7 +836,7 @@ if(~useSavedParams)
 %             continue
         end
         if ~exist([paths.inFolder st_dir(i).name(1:end-4) '_ch' num2str(ch_ref) '.tif'],'file')
-            continue
+            % continue
         end
         display([st_dir(i).name]);
         load([paths.objFolder filesep st_dir(i).name]);
@@ -858,9 +868,9 @@ paths.fieldName=  'rotScale'; %struct where re-rotation parameters are read
 
 useSavedParams = false; % use provided parameters (true: use provided parameters; false: use user parameters)
 
-fish=''; % put the number of the fish/scale/hpp to process or '' to choose them all
-scale=''; 
-hpp='';
+fish='3'; % put the number of the fish/scale/hpp to process or '' to choose them all
+scale='20'; 
+hpp='120';
 
 st_dir=dir([paths.objFolder 'fish'  num2str(fish) '*ray' num2str(scale) '*' num2str(hpp) 'hpa*' '.mat']);
 % sort st_dir; edited 062123
@@ -870,10 +880,10 @@ st_dir = st_dir(sort_idx);
 % apply re-rotations
 for i=1:numel(st_dir)
     if exist([paths.outFolder st_dir(i).name(1:end-4) '_ch' num2str(chToRotate(1)) '.tif'],'file')
-%             continue
+            % continue
     end
     if ~exist([paths.inFolder st_dir(i).name(1:end-4) '_ch' num2str(chToRotate(1)) '.tif'],'file')
-            continue
+            % continue
     end
     disp([st_dir(i).name]);
     
@@ -900,7 +910,7 @@ end
 disp(["----------Start equalization----------"]);
 
 
-chToEq=ch_of_interest+1; % channel to equalize
+chToEq=ch_of_interest; % channel to equalize
 
 paths=[];
 paths.masterFolder=dataFolder; %folder where data is stored
@@ -916,6 +926,9 @@ st_dir=dir([paths.objFolder 'fish'  num2str(fish) '*ray' num2str(scale) '*' num2
  % equalization
 for i=1:numel(st_dir)
     display([st_dir(i).name]);
+    if exist([paths.outFolder st_dir(i).name(1:end-4) '_ch' num2str(chToRotate(1)) '.tif'],'file')
+          continue
+    end
     load([st_dir(i).folder filesep st_dir(i).name]);
     myScale = equalizeScale(myScale,chToEq,paths);
 end
@@ -944,9 +957,11 @@ verbose =0; % display segmentation (0: no; 1: yes)
 segOpts.segmThresh = 1; %Use 1.0 on 22Dec21
 
 for i=1:numel(st_dir)
-   
     disp('------------');
     display([st_dir(i).name(1:end-4) '.mat']);
+    if exist([paths.outFolder st_dir(i).name(1:end-4) '_ch' num2str(ch_of_interest(1)) '_seg.tif'],'file')
+          continue
+    end
     load([paths.objFolder filesep st_dir(i).name(1:end-4) '.mat']);
     [myScale] = segmentMyScale(myScale,refCh,paths,segOpts,verbose);
 end
@@ -956,7 +971,7 @@ end
 % z-position. 
 disp(["----------Start flattening equalized stacks----------"]);
 
-toflattenCh=ch_of_interest+1; % channel to flatten
+toflattenCh=ch_of_interest; % channel to flatten
 
 paths=[];
 paths.masterFolder=dataFolder; %folder where data is stored
@@ -986,7 +1001,7 @@ end
 % z-position. 
 disp(["----------Start flattening un-equalized stacks----------"]);
 
-toflattenCh=ch_of_interest+1; % channel to flatten
+toflattenCh=ch_of_interest; % channel to flatten
 
 paths=[];
 paths.masterFolder=dataFolder; %folder where data is stored
@@ -1019,7 +1034,7 @@ end
 disp(["----------Start isolating hypo-layer for equalized stack----------"]);
 
 refCh=ch_ref; % reference channel for calculation z-peak
-todivideCh=ch_of_interest+1; % channels to divide
+todivideCh=ch_of_interest; % channels to divide
 
 paths=[];
 paths.masterFolder=dataFolder; %folder where data is stored
@@ -1041,19 +1056,25 @@ divOpts.methodEpi=15; % z-limit hyposquamal layer - planes past the peak in tota
 for i=1:numel(st_dir)
     
     display([st_dir(i).name]);
-    load([paths.objFolder st_dir(i).name]);
-
-    if(myScale.hpp<48)
-        divOpts.methodHypo='peak';
-        [myScale,zprofile] = divideLayersScaleSegm(myScale,refCh,todivideCh,paths,divOpts);
-    elseif(myScale.hpp<85)
-        divOpts.methodHypo='peak';
-        [myScale,zprofile] = divideLayersScaleSegm(myScale,refCh,todivideCh,paths,divOpts);
-    else
-        divOpts.methodHypo='peak';
-        [myScale,zprofile] = divideLayersScaleSegm(myScale,refCh,todivideCh,paths,divOpts);
+    if exist([paths.outFolder st_dir(i).name(1:end-4) '_ch' num2str(ch_of_interest(1)) '_sharedmaxproj.tif'],'file')
+        continue
     end
 
+    load([paths.objFolder st_dir(i).name]);
+
+    % if(myScale.hpp<48)
+    %     divOpts.methodHypo='peak';
+    %     [myScale,zprofile] = divideLayersScaleSegm(myScale,refCh,todivideCh,paths,divOpts);
+    % elseif(myScale.hpp<85)
+    %     divOpts.methodHypo='peak';
+    %     [myScale,zprofile] = divideLayersScaleSegm(myScale,refCh,todivideCh,paths,divOpts);
+    % else
+    %     divOpts.methodHypo='peak';
+    %     [myScale,zprofile] = divideLayersScaleSegm(myScale,refCh,todivideCh,paths,divOpts);
+    % end
+    
+    divOpts.methodHypo='peak';
+    [myScale,zprofile] = divideLayersScaleSegm(myScale,refCh,todivideCh,paths,divOpts);
 end
 
 %% Isolation hyposquamal layer - Non equalized stacks (not needed for fibroblasts)
@@ -1064,7 +1085,7 @@ end
 disp(["----------Start isolating hypo-layer for un-equalized stack----------"]);
 
 refCh=ch_ref;
-todivideCh=ch_of_interest+1;
+todivideCh=ch_of_interest;
 
 paths=[];
 paths.masterFolder=dataFolder; %folder where data is stored
@@ -1087,16 +1108,19 @@ for i=1:numel(st_dir)
     display([st_dir(i).name]);
     load([paths.objFolder st_dir(i).name]);
 
-    if(myScale.hpp<48)
-        divOpts.methodHypo='peak';
-        [myScale,zprofile] = divideLayersScaleSegm(myScale,refCh,todivideCh,paths,divOpts);
-    elseif(myScale.hpp<80)
-        divOpts.methodHypo='peak';
-        [myScale,zprofile] = divideLayersScaleSegm(myScale,refCh,todivideCh,paths,divOpts);
-    else
-        divOpts.methodHypo='peak';
-        [myScale,zprofile] = divideLayersScaleSegm(myScale,refCh,todivideCh,paths,divOpts);
-    end
+    % if(myScale.hpp<48)
+    %     divOpts.methodHypo='peak';
+    %     [myScale,zprofile] = divideLayersScaleSegm(myScale,refCh,todivideCh,paths,divOpts);
+    % elseif(myScale.hpp<80)
+    %     divOpts.methodHypo='peak';
+    %     [myScale,zprofile] = divideLayersScaleSegm(myScale,refCh,todivideCh,paths,divOpts);
+    % else
+    %     divOpts.methodHypo='peak';
+    %     [myScale,zprofile] = divideLayersScaleSegm(myScale,refCh,todivideCh,paths,divOpts);
+    % end
+
+    divOpts.methodHypo='peak';
+    [myScale,zprofile] = divideLayersScaleSegm(myScale,refCh,todivideCh,paths,divOpts);
    
 end
 %%
@@ -1114,10 +1138,10 @@ mkdir(paths.outFolder);
 paths.objFolder = [paths.masterFolder filesep 'objects/'];
 chToUse = ch_of_interest;
 
-fish = '1'; % put the number of the fish/scale/hpp to process or '' to choose them all
+fish = '3'; % put the number of the fish/scale/hpp to process or '' to choose them all
 scale = '2';
-hpp = '';
-st_dir=dir([paths.objFolder 'fish'  num2str(fish) '*ray' num2str(scale) '*' num2str(hpp) 'hpa*' '.mat']);
+hpp = '60';
+st_dir=dir([paths.objFolder 'fish'  num2str(fish) '*ray' num2str(scale) '_*' num2str(hpp) 'hpa*' '.mat']);
 [~,sort_idx] = sort_nat({st_dir.name});
 st_dir = st_dir(sort_idx);
 
@@ -1126,32 +1150,33 @@ for i=1:numel(st_dir)
     wpathmat = [paths.objFolder filesep st_dir(i).name(1:end-4) '.mat'];
     load(wpathmat);
     if isfield(myScale, 'straighten_points')
-        %continue
+        % continue
     end
     fluor_image_path = [paths.inFolder filesep st_dir(i).name(1:end-4) '_ch' num2str(chToUse) 'maxproj.tif'];
     fluor_IM = imread(fluor_image_path);
     fluor_IM = widenImage(fluor_IM);
     points = getStraightenPoints(fluor_IM);
-    bf_image_path = [paths.inFolder filesep st_dir(i).name(1:end-4) '_ch' num2str(ch_BF) 'maxproj.tif'];
-    bf_IM = imread(bf_image_path);
-    bf_IM = widenImage(bf_IM);
+    % bf_image_path = [paths.inFolder filesep st_dir(i).name(1:end-4) '_ch' num2str(ch_BF) 'maxproj.tif'];
+    % bf_IM = imread(bf_image_path);
+    % bf_IM = widenImage(bf_IM);
     myScale.straighten_points = points;
     w = 200;
     [fluor_IM2, w] = optimizeStraighten(fluor_IM, points', w);
-    bf_IM2 = straighten(bf_IM, points', w);
+    % bf_IM2 = straighten(bf_IM, points', w);
     close;
     imshow(permute(fluor_IM2,[2,1,3])./255); axis image off;
     save_path = [paths.outFolder filesep st_dir(i).name(1:end-4) '_ch' num2str(chToUse) 'maxproj_straightened.tif'];
     saveas(gcf, save_path);
     close;
-    imshow(permute(bf_IM2,[2,1,3])./255); axis image off;
-    save_path = [paths.outFolder filesep st_dir(i).name(1:end-4) '_ch' num2str(ch_BF) 'maxproj_straightened.tif'];
-    saveas(gcf, save_path);
-    close;
+    % imshow(permute(bf_IM2,[2,1,3])./255); axis image off;
+    % save_path = [paths.outFolder filesep st_dir(i).name(1:end-4) '_ch' num2str(ch_BF) 'maxproj_straightened.tif'];
+    % saveas(gcf, save_path);
+    % close;
     profile = collapseMatrix(fluor_IM2);
     myScale.linescan = flip(profile);
     save(wpathmat, 'myScale');
 end
+disp('done');
 
 %% Manually determine amputation plane
 % Written by NSJ on 2/10/25
@@ -1160,14 +1185,15 @@ end
 disp('----------Begin Manually Determine Amputation Plane----------');
 paths = [];
 paths.masterFolder = dataFolder;
-paths.inFolder = [paths.masterFolder filesep 'straightened/'];
-paths.objFolder = [paths.masterFolder filesep 'objects/'];
-chToUse = ch_KTR;
+paths.inFolder = [paths.masterFolder filesep 'straightened'];
+paths.inFolder = [paths.masterFolder filesep 'rotated'];
+paths.objFolder = [paths.masterFolder filesep 'objects'];
+chToUse = ch_GEM;
 
-fish = '1'; % put the number of the fish/scale/hpp to process or '' to choose them all
-scale = '2';
+fish = '9'; % put the number of the fish/scale/hpp to process or '' to choose them all
+scale = '6';
 hpp = '';
-st_dir=dir([paths.objFolder 'fish'  num2str(fish) '*ray' num2str(scale) '*' num2str(hpp) 'hpa*' '.mat']);
+st_dir=dir([paths.objFolder filesep 'fish'  num2str(fish) '_ray' num2str(scale) '_*' num2str(hpp) 'hpa*' '.mat']);
 [~,sort_idx] = sort_nat({st_dir.name});
 st_dir = st_dir(sort_idx);
 
@@ -1179,22 +1205,64 @@ for i=1:numel(st_dir)
         % continue
     end
     file_end_name = 'maxproj_straightened.tif';
-    % proj = loadtiff([paths.inFolder filesep st_dir(i).name(1:end-4) '_ch' num2str(chToUse) file_end_name]);
+    file_end_name = 'maxproj.tif';
     proj = imread([paths.inFolder filesep st_dir(i).name(1:end-4) '_ch' num2str(chToUse) file_end_name]);
     h = figure;
     h.Name = [st_dir(i).name(1:end-4) ' BF'];
-    % imshow(imadjust(proj));
-    imagesc(proj*25); axis image off;
+    imagesc(proj); axis image off;
     h.WindowState = 'maximized';
     [x, y] = ginput(1);
     myScale.manualAmpPlane = [x, y];
-    myScale.straightenedXLength = width(proj); 
-    % [x_ref, y_ref] = ginput(1);
-    % myScale.referencePoint = [x_ref, y_ref];
+    % myScale.straightenedXLength = width(proj); 
     save(wpathmat, 'myScale');
     close;
 end
 
+%% Find blastemal signal area
+% Written by NSJ on 5/23/25
+% Run to determine the area of a signal of interest in the blastema 
+disp('----------Begin Find Blastemal Signal Area----------');
+paths = [];
+paths.masterFolder = dataFolder;
+paths.inFolder = [paths.masterFolder filesep 'rotated'];
+paths.objFolder = [paths.masterFolder filesep 'objects'];
+chToUse = ch_ref;
+
+fish = ''; % put the number of the fish/scale/hpp to process or '' to choose them all
+scale = '';
+hpp = '';
+st_dir=dir([paths.objFolder filesep 'fish'  num2str(fish) '_ray' num2str(scale) '_*' num2str(hpp) 'hpa*' '.mat']);
+[~,sort_idx] = sort_nat({st_dir.name});
+st_dir = st_dir(sort_idx);
+
+for i=1:numel(st_dir)
+    disp([st_dir(i).name]);
+    wpathmat = [paths.objFolder filesep st_dir(i).name(1:end-4) '.mat'];
+    load(wpathmat);
+    if isfield(myScale, 'Runx2_area')
+        % continue
+    end
+    file_end_name = 'maxproj.tif';
+    proj = imread([paths.inFolder filesep st_dir(i).name(1:end-4) '_ch' num2str(chToUse) file_end_name]);
+    proj_blastema = proj(:, myScale.ampPointreal:myScale.endPointrot);
+    threshold = graythresh(proj_blastema);
+    BW = imbinarize(proj_blastema, threshold);
+    area = 0;
+    total = 0;
+    for row = 1:height(BW)
+        for col = 1: width(BW)
+            pixel = BW(row, col);
+            if pixel ~= 0
+                area = area + 1;
+                total = total + pixel;
+            end
+        end
+    end
+    myScale.Runx2_area = area;
+    myScale.Runx2_total_fluorescence = total;
+    save(wpathmat, 'myScale');
+    close;
+end
 %%
 %%
 %%
@@ -1209,36 +1277,36 @@ disp(["----------Start TGMM segmentation----------"]);
 paths.nameFolder=dataFolder_split{end-1};
 paths.masterFolder=dataFolder;
 
-% fish=''; % put the number of the fish/scale/hpp to process or '' to choose them all
-% scale=''; 
-% hpp='';
+fish=''; % put the number of the fish/scale/hpp to process or '' to choose them all
+scale=''; 
+hpp='';
 if osteoblast
     tgmmFolder = 'TGMM_hypo_eq_ch2';
-    datasource   = [paths.masterFolder  'divided_eq\']; % I use equalized images
+    datasource   = [paths.masterFolder  'divided_eq' filesep]; % I use equalized images
 %     st_dir=dir(strcat(datasource,'fish*','_ch2_hypo.tif')); 
     st_dir=dir(strcat(datasource,'fish',  num2str(fish), '*ray', num2str(scale), '*', num2str(hpp), 'hpa*',...
         '_ch', num2str(ch_nuc), '_hypo.tif')); 
 else
     tgmmFolder = 'TGMM_equalized_ch2';
-    datasource   = [paths.masterFolder  'equalized\']; % I use equalized images
+    datasource   = [paths.masterFolder  'equalized' filesep]; % I use equalized images
 %     st_dir=dir(strcat(datasource,'fish*','_ch2_hypo.tif')); 
     st_dir=dir(strcat(datasource,'fish',  num2str(fish), '*ray', num2str(scale), '*', num2str(hpp), 'hpa*',...
         '_ch', num2str(ch_nuc), '.tif')); %changed from hypo to none July6
 end
 
 
-tpl=           [TGMMtemplateFolder filesep 'TGMM_configFile.txt'];  
-bat_tpl=           [TGMMtemplateFolder filesep 'batch_TGMM.bat'];  
+tpl=           [TGMMtemplateFolder 'segmentation_package' filesep 'TGMM_configFile.txt'];  
+bat_tpl=           [TGMMtemplateFolder 'segmentation_package' filesep 'batch_TGMM.bat'];  
 
-configfolder=  [paths.masterFolder tgmmFolder '\TGMMconfig\'];
+configfolder=  [paths.masterFolder tgmmFolder filesep 'TGMMconfig' filesep];
     
 
 
-datapathmac  = [paths.masterFolder  tgmmFolder '\data\'];
-respathmac   = [paths.masterFolder  tgmmFolder '\results\'];
+datapathmac  = [paths.masterFolder  tgmmFolder filesep 'data' filesep];
+respathmac   = [paths.masterFolder  tgmmFolder filesep 'results' filesep];
     
-datapathwin= [winFolder filesep paths.nameFolder filesep tgmmFolder '\data\'];
-respathwin=  [winFolder filesep paths.nameFolder filesep tgmmFolder '\results\'];
+datapathwin= [winFolder filesep paths.nameFolder filesep tgmmFolder filesep 'data' filesep];
+respathwin=  [winFolder filesep paths.nameFolder filesep tgmmFolder filesep 'results' filesep];
     
     
 mkdir(configfolder);
@@ -1295,14 +1363,14 @@ end
 
 addpath(genpath(readTGMMFolder))
 
-respath=[dataFolder filesep tgmmFolder '/results/'];
-objpath=[dataFolder filesep tgmmFolder '/objects/'];
+respath=[dataFolder filesep tgmmFolder filesep 'results' filesep];
+objpath=[dataFolder filesep tgmmFolder filesep 'objects' filesep];
 
 mkdir(objpath);
 
-% fish='3'; % put the number of the fish/scale/hpp to process or '' to choose them all
-% scale='2'; 
-% hpp='168';
+fish=''; % put the number of the fish/scale/hpp to process or '' to choose them all
+scale=''; 
+hpp='';
 st_dir=dir([respath 'fish'  num2str(fish) '*ray' num2str(scale) '*' num2str(hpp) 'hpa*']);
 
 for i=1:numel(st_dir) 
@@ -1311,7 +1379,7 @@ for i=1:numel(st_dir)
         % continue
     end
     disp(['Parse tgmm ' st_dir(i).name])
-   gme=dir([respath st_dir(i).name filesep 'G*']);
+    gme=dir([respath st_dir(i).name filesep 'G*']);
     [~,sort_idx] = sort_nat({gme.date});
     gme = gme(sort_idx);
 
@@ -1346,19 +1414,19 @@ paths.plotFolder=    [paths.masterFolder 'nuclei_example/']; % where the roi is 
 mkdir(paths.plotFolder);
 
 if osteoblast
-paths.inFolder=     [paths.masterFolder 'divided_refEq/']; % input folder non-equalized Erk sensor signal
-paths.refFolder=    [paths.masterFolder 'divided_eq/']; % input folder equalized nuclear signals
+paths.inFolder=     [paths.masterFolder 'divided_refEq' filesep]; % input folder non-equalized Erk sensor signal
+paths.refFolder=    [paths.masterFolder 'divided_eq' filesep]; % input folder equalized nuclear signals
 paths.KTRsuffix = ['_ch' num2str(ch_KTR) '_hypo']; % suffix Erk sensor signal stacks
 paths.H2Asuffix = ['_ch' num2str(ch_nuc) '_hypo']; % suffix nuclear signal stacks
 else
-paths.inFolder=     [paths.masterFolder 'rotated/']; % input folder non-equalized Erk sensor signal
-paths.refFolder=    [paths.masterFolder 'equalized/']; % input folder equalized nuclear signals
+paths.inFolder=     [paths.masterFolder 'rotated' filesep]; % input folder non-equalized Erk sensor signal
+paths.refFolder=    [paths.masterFolder 'equalized' filesep]; % input folder equalized nuclear signals
 paths.KTRsuffix = ['_ch' num2str(ch_KTR)]; % suffix Erk sensor signal stacks
 paths.H2Asuffix = ['_ch' num2str(ch_nuc)]; % suffix nuclear signal stacks
 end
 
-paths.objFolder=    [paths.masterFolder 'objects/']; % myScale objects folder
-paths.tgmmFolder=   [paths.masterFolder tgmmFolder '/objects/']; % TGMM objects folder
+paths.objFolder=    [paths.masterFolder 'objects' filesep]; % myScale objects folder
+paths.tgmmFolder=   [paths.masterFolder tgmmFolder filesep 'objects' filesep]; % TGMM objects folder
 
 
 opts=[];
@@ -1625,11 +1693,7 @@ for i=1:numel(st_dir)
 % i = 15;
 
     if exist([paths.outFolder filesep st_dir(i).name(1:end-4) '_ROI_nuclei_eroded.tif'],'file')
-        % continue
-    end
-
-    if strcmp(st_dir(i).name,'fish1_ray2_672hpa.mat')||strcmp(st_dir(i).name,'fish3_ray2_672hpa.mat')
-        % continue
+        continue
     end
 
    disp('------------');
